@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,12 +23,12 @@ public class PlayerHealthHandler : MonoBehaviour
     Respawner spawner;
 
     private bool hasRespawned = false;
+    private ConstantForce constantForce; // Biến lưu trữ Constant Force
 
     void Start()
     {
         _PlayerController = GetComponent<PlayerController>();
-        spawner = GameObject.FindGameObjectWithTag("Respawn").
-            GetComponent<Respawner>();
+        spawner = GameObject.FindGameObjectWithTag("Respawn").GetComponent<Respawner>();
         spawner.SetPosition(transform.position);
 
         HeartPanel = GameObject.Find("HeartPanel").transform;
@@ -40,7 +40,15 @@ public class PlayerHealthHandler : MonoBehaviour
         }
 
         PlayerCurrentHealth = PlayerMaxHealth;
-       // LoadPlayerHealth();
+
+        // Load ConstantForce component
+        constantForce = GetComponent<ConstantForce>();
+        if (constantForce != null)
+        {
+            constantForce.enabled = false; // Tắt Constant Force lúc đầu
+        }
+
+        // LoadPlayerHealth();
     }
 
     void Update()
@@ -48,6 +56,7 @@ public class PlayerHealthHandler : MonoBehaviour
         if (PlayerCurrentHealth <= 0)
         {
             print("Player is dead!");
+
             spawner.playerIsDead();
             Instantiate(DeathParticle, transform.position, transform.rotation);
             Destroy(gameObject);
@@ -90,8 +99,12 @@ public class PlayerHealthHandler : MonoBehaviour
         {
             PlayerCurrentHealth = 0;
         }
+
         _PlayerController.controller.Move(-push);
         _PlayerController.flashRed();
+
+        // Bắt đầu xoay khi mất máu
+        StartCoroutine(RotatePlayerOnDamage());
 
         SavePlayerHealth();
     }
@@ -134,5 +147,22 @@ public class PlayerHealthHandler : MonoBehaviour
         PlayerMaxHealth = PlayerPrefs.GetInt("PlayerMaxHealth", PlayerMaxHealth);
         PlayerCurrentHealth = PlayerPrefs.GetInt("PlayerCurrentHealth", PlayerMaxHealth);
     }
-}
 
+    // Coroutine: Xoay nhân vật khi bị mất máu
+    private IEnumerator RotatePlayerOnDamage()
+    {
+        if (constantForce != null)
+        {
+            constantForce.enabled = true; // Bật Constant Force
+            constantForce.torque = new Vector3(0, 10, 0); // Xoay quanh trục Y
+        }
+
+        yield return new WaitForSeconds(0.5f); // Quay trong 1 giây
+
+        if (constantForce != null)
+        {
+            constantForce.enabled = false; // Tắt Constant Force
+            constantForce.torque = Vector3.zero; // Dừng xoay
+        }
+    }
+}
